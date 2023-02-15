@@ -1,0 +1,48 @@
+-- Q1 Show the percentage increase in loser rank points with respect
+-- to the previous year for each loser.
+WITH MEMBER wrt_previous_year AS
+
+	( ( [Measures].[Loser Rank Points] * 100 ) / 
+						([Tourney].[DayMonthQuarterYear].CURRENTMEMBER.LAG(1), 
+												[Measures].[Loser Rank Points]  ) ) -100,
+														FORMAT_STRING = "STANDARD"
+
+SELECT { [Measures].[Loser Rank Points], wrt_previous_year } ON COLUMNS,
+	NONEMPTY(([Tourney].[DayMonthQuarterYear].[Year], [Loser].[Player Id].[Player Id])) ON ROWS
+
+FROM [Group 30_tennis];
+
+
+-- Q2 For each tournament show the total winner rank points in percentage with respect
+-- to the total winner rank points of the corresponding year of the tournament.
+
+WITH MEMBER grand_total_tourney AS
+
+	([Tourney].[YearTournament].PARENT, [Measures].[Winner Rank Points])
+
+MEMBER perc AS
+
+	([Measures].[Winner Rank Points] / grand_total_tourney), FORMAT_STRING = "percent"
+
+SELECT {[Measures].[Winner Rank Points], grand_total_tourney, perc} ON COLUMNS,
+	([Tourney].[Year].[Year], [Tourney].[YearTournament].[Tourney Id]) ON ROWS
+
+FROM [Group 30_tennis];
+
+
+-- Q3 Show the winners having a total winner rank points greater than the average winner
+-- rank points in each continent by continent and year.
+WITH MEMBER grand_total AS
+
+	([Winner].[geography].PARENT.PARENT, [Tourney].[DayMonthQuarterYear].PARENT, [Measures].[Winner Rank Points])
+
+MEMBER avg_rank_points AS
+
+	grand_total / ([Winner].[geography].PARENT.PARENT, [Tourney].[DayMonthQuarterYear].PARENT,
+														[Measures].[Match Count])
+
+SELECT { [Measures].[Winner Rank Points], avg_rank_points } ON COLUMNS,
+	FILTER( ([Winner].[Continent].[Continent],[Tourney].[DayMonthQuarterYear].[Year], [Winner].[geography].[Player Id]),
+							[Measures].[Winner Rank Points] > avg_rank_points ) ON ROWS
+
+FROM [Group 30_tennis];
